@@ -17,6 +17,9 @@ struct USBDevice: Identifiable {
     var productID: Int
     var manufacturer: String
     var product: String
+    var serialNumber: String?
+    var linkSpeed: String?
+    var powerAllocated: String?
 }
 
 enum USBConnectionStatus {
@@ -118,6 +121,8 @@ class USBDetector {
                 print(error.localizedDescription)
             }
         }
+
+        NotificationCenter.default.post(name: NSNotification.Name("USBDeviceChanged"), object: nil)
     }
 
     private func sendNotifications(for devices: [USBDevice],
@@ -161,6 +166,8 @@ class USBDetector {
                 print(error.localizedDescription)
             }
         }
+
+        NotificationCenter.default.post(name: NSNotification.Name("USBDeviceChanged"), object: nil)
     }
 
     private var newDevices: [USBDevice] = []

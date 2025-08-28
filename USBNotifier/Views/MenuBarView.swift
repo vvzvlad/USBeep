@@ -23,12 +23,16 @@ struct MenuBarView: View {
             Divider()
 
             if !detectorStatus.status {
-                Button("usb.service.start") {
+                Button {
                     detectorStatus.status = true
+                } label: {
+                    Label("usb.service.start", systemImage: "play")
                 }
             } else {
-                Button("usb.service.pause") {
+                Button {
                     detectorStatus.status = false
+                } label: {
+                    Label("usb.service.pause", systemImage: "pause")
                 }
             }
 
@@ -49,6 +53,12 @@ struct MenuBarView: View {
             }
             label: {
                 Label("settings", systemImage: "gearshape")
+            }
+
+            Menu {
+                ExtraUSBDetails()
+            } label: {
+                Label("extraUSBdetails", systemImage: "info")
             }
 
             Button("app.quit") {

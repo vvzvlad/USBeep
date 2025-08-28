@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		AB633FB32E602D48006C7FA0 /* ExtraUSBDetails.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB633FB22E602D41006C7FA0 /* ExtraUSBDetails.swift */; };
 		ABA6E30B2B50EA460054F69E /* USBNotifierApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABA6E30A2B50EA460054F69E /* USBNotifierApp.swift */; };
 		ABA6E30F2B50EA480054F69E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = ABA6E30E2B50EA480054F69E /* Assets.xcassets */; };
 		ABA6E3122B50EA480054F69E /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = ABA6E3112B50EA480054F69E /* Preview Assets.xcassets */; };
@@ -20,6 +21,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		AB633FB22E602D41006C7FA0 /* ExtraUSBDetails.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtraUSBDetails.swift; sourceTree = "<group>"; };
 		ABA6E3072B50EA460054F69E /* USBNotifier.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = USBNotifier.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		ABA6E30A2B50EA460054F69E /* USBNotifierApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USBNotifierApp.swift; sourceTree = "<group>"; };
 		ABA6E30E2B50EA480054F69E /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -86,6 +88,7 @@
 		ABA6E31B2B50EB2E0054F69E /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				AB633FB22E602D41006C7FA0 /* ExtraUSBDetails.swift */,
 				ABA6E3192B50EA9E0054F69E /* MenuBarView.swift */,
 				ABF7E1A42B5152C90036DDC3 /* Dialogs.swift */,
 			);
@@ -216,6 +219,7 @@
 				ABF7E1A52B5152C90036DDC3 /* Dialogs.swift in Sources */,
 				ABF7E1A72B5159620036DDC3 /* LaunchAtStartup.swift in Sources */,
 				ABF7E1A22B51501C0036DDC3 /* USBControl.swift in Sources */,
+				AB633FB32E602D48006C7FA0 /* ExtraUSBDetails.swift in Sources */,
 				ABA6E3202B50ECE70054F69E /* Storage.swift in Sources */,
 				ABA6E31E2B50EB500054F69E /* USBDetector.swift in Sources */,
 				ABA6E31A2B50EA9E0054F69E /* MenuBarView.swift in Sources */,

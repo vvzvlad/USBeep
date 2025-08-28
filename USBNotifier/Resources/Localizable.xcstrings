@@ -81,6 +81,31 @@
         }
       }
     },
+    "extraUSBdetails" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Details"
+          }
+        }
+      }
+    },
+    "ID: %@" : {
+
+    },
+    "Link Speed: %@" : {
+
+    },
+    "Link Speed: Unknown" : {
+
+    },
+    "Power Allocated: %@" : {
+
+    },
+    "Serial Number: %@" : {
+
+    },
     "settings" : {
       "localizations" : {
         "en" : {
