@@ -109,6 +109,27 @@ final class USBDeviceTests: XCTestCase {
         XCTAssertEqual(device.speedText, "USB 3.2 · 5 Gb/s")
     }
 
+    func testGenerationComesFromBcdUSB() {
+        XCTAssertEqual(USBDevice.usbVersion(bcd: 0x0110), "USB 1.1")
+        XCTAssertEqual(USBDevice.usbVersion(bcd: 0x0200), "USB 2.0")
+        XCTAssertEqual(USBDevice.usbVersion(bcd: 0x0210), "USB 2.0")
+        XCTAssertEqual(USBDevice.usbVersion(bcd: 0x0300), "USB 3.0")
+        XCTAssertEqual(USBDevice.usbVersion(bcd: 0x0320), "USB 3.2")
+        XCTAssertEqual(USBDevice.usbVersion(bcd: 0x0400), "USB4")
+        XCTAssertNil(USBDevice.usbVersion(bcd: 0))
+
+        // A USB 2.0 receiver on a Full Speed link, as in PlugTalk's dropdown.
+        let receiver = USBDevice(registryID: 1, properties: [
+            "UsbLinkSpeed": NSNumber(value: 12_000_000),
+            "bcdUSB": NSNumber(value: 0x0200)
+        ])
+        XCTAssertEqual(receiver.speedText, "USB 2.0 · 12 Mb/s")
+
+        // Without bcdUSB the generation is still derived from the speed.
+        let fallback = USBDevice(registryID: 2, properties: ["USBSpeed": NSNumber(value: 1)])
+        XCTAssertEqual(fallback.speedText, "USB 1.1 · 12 Mb/s")
+    }
+
     // MARK: - Power
 
     func testFormatPower() {
@@ -185,5 +206,14 @@ final class USBDeviceTests: XCTestCase {
             interface(number: 1, classCode: 0x0E)
         ])
         XCTAssertEqual(composite.category, .videoCamera)
+    }
+
+    func testApplePTPDeviceIsAPhone() {
+        let ptp = [interface(number: 0, classCode: 0x06, protocolCode: 1)]
+        let iphone = USBDevice(registryID: 1, properties: ["idVendor": NSNumber(value: 0x05AC)], interfaces: ptp)
+        XCTAssertEqual(iphone.category, .phone)
+
+        let camera = USBDevice(registryID: 2, properties: ["idVendor": NSNumber(value: 0x04A9)], interfaces: ptp)
+        XCTAssertEqual(camera.category, .stillCamera)
     }
 }

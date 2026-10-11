@@ -93,6 +93,7 @@ struct MenuView: View {
             Spacer(minLength: 8)
             if let total = USBDevice.formatPower(milliamps: totalMilliamps) {
                 Badge(text: total, color: Theme.accent, fontSize: 13)
+                    .help("Total current allocated on the 5 V bus: \(totalMilliamps) mA")
             }
         }
     }

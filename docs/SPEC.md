@@ -33,7 +33,11 @@ Menu-bar приложение для macOS 14+: при подключении/о
   проверено по заголовку `IOUSBHostFamilyDefinitions.h` из Xcode SDK. Upstream использует
   `kIOUSBDeviceClassName`, в этих заголовках её нет.
 - Подписка: `IONotificationPortCreate` → `IOServiceAddMatchingNotification` с
-  `kIOMatchedNotification` и `kIOTerminatedNotification` на `IOServiceMatching("IOUSBHostDevice")`.
+  `kIOFirstMatchNotification` и `kIOTerminatedNotification` на `IOServiceMatching("IOUSBHostDevice")`.
+  Именно first-match, а не `kIOMatchedNotification`: по `IOKitLib.h` first-match приходит
+  один раз на экземпляр сервиса, а matched может прийти повторно при перерегистрации уже
+  подключённого устройства — это ложное «Connected». Новое подключение — всегда новый
+  экземпляр, поэтому first-match ничего не теряет.
   Оба итератора нужно сразу выбрать до конца — иначе нотификации не взводятся; upstream
   делает это при старте и тем самым молча пропускает уже подключённые устройства.
 - Свойства — `IORegistryEntryCreateCFProperties`, идентификатор — `IORegistryEntryGetRegistryEntryID`.
@@ -50,6 +54,7 @@ Menu-bar приложение для macOS 14+: при подключении/о
 | `UsbLinkSpeed` (`kUSBHostPropertyForceLinkSpeed`) | скорость линка в бит/с |
 | `UsbPowerSinkAllocation` (`kUSBHostDevicePropertyPowerSinkAllocation`) | «OSNumber mA of current the device is expected to sink from Vbus (5V)» |
 | `UsbPowerSinkCapability` | максимум mA, который устройство может взять |
+| `bcdUSB` | версия USB, которую объявляет устройство, в BCD: 0x0110 = 1.1, 0x0200 = 2.0, 0x0320 = 3.2 |
 
 Enum `tIOUSBHostConnectionSpeed` (значения `USBSpeed`):
 None=0, Full=1 (12 Mb/s), Low=2 (1.5 Mb/s), High=3 (480 Mb/s), Super=4 (5 Gb/s),
@@ -82,7 +87,9 @@ Frog, Funk, Glass, Hero, Morse, Ping, Pop, Purr, Sosumi, Submarine, Tink. Игр
 | Решение | Почему так | Что отвергли и почему |
 | --- | --- | --- |
 | Идентификатор устройства — registry entry ID | уникален для каждого экземпляра | upstream `"VID-PID"`: два одинаковых устройства сливаются в одно |
-| Скорость: `UsbLinkSpeed` (бит/с) → «USB 2.0 · 480 Mb/s» (поколение по скорости: ≤12 Mb/s — 1.1, ≤480 Mb/s — 2.0, <40 Gb/s — 3.2, дальше USB4), запасной вариант — enum `USBSpeed` | реальная скорость линка в готовых единицах | upstream-ключ `Device Speed` — другой enum (см. §4) |
+| Скорость: `UsbLinkSpeed` (бит/с) → «USB 2.0 · 480 Mb/s», запасной вариант — enum `USBSpeed`. Поколение — из `bcdUSB` (2.x → «USB 2.0», ≥4 → «USB4»), без ключа — по скорости (≤12 Mb/s — 1.1, ≤480 Mb/s — 2.0, <40 Gb/s — 3.2, дальше USB4) | реальная скорость линка в готовых единицах; клавиатура на 12 Mb/s обычно объявляет 2.0, и PlugTalk показывает «USB 2.0 · 12 Mb/s» | upstream-ключ `Device Speed` — другой enum (см. §4); поколение только по скорости — Full Speed-устройства USB 2.0 выглядят как «USB 1.1» |
+| Устройство Apple с PTP-интерфейсом (класс 0x06) — категория «Phone», а не «Camera» | так iPhone/iPad выглядит первым интерфейсом | — |
+| В пачке с подключениями и отключениями играет только звук подключения | два звука одновременно сливаются | — |
 | Питание: `UsbPowerSinkAllocation` → бейдж «2.5 W» (mA × 5 В), mA — во всплывающей подсказке; нет ключа или 0 — не показываем | единственное, что отдаёт IOKit без привилегий | — |
 | Уведомление без собственного звука, звук отдельно через `NSSound` | раздельные звуки на подключение/отключение и отдельный выключатель | звук самого уведомления: один на всё и зависит от настроек Focus |
 | Дебаунс 1 с, пачка → одно уведомление «N devices connected» | хаб с пятью устройствами не должен сыпать пять баннеров | — |
@@ -106,9 +113,13 @@ Frog, Funk, Glass, Hero, Morse, Ping, Pop, Purr, Sosumi, Submarine, Tink. Игр
   берётся из кэша по registry ID, а не читается с умирающего сервиса.
 - **Уведомления и автозапуск требуют бандла.** `UNUserNotificationCenter` и `SMAppService`
   падают/молчат у голого бинарника из `swift build`. Только `make run`/`make install`.
-- **Menu-bar приложение «активно», пока открыто его окно**, и без делегата
-  `UNUserNotificationCenter` (`willPresent` → `[.banner, .list]`) баннер в этот момент
-  не показывается.
+- **Окно `MenuBarExtra(.window)` и `onAppear`.** Проверено на запущенном приложении
+  (`NSLog` + шесть кликов по иконке через System Events): `onAppear` срабатывает при
+  каждом открытии окна, вместе с `NSWindow.didBecomeKeyNotification`. Приложение при этом
+  активным не становится — `NSApplication.didBecomeActiveNotification` не приходит ни разу,
+  так что завязываться на активацию нельзя. Делегат `UNUserNotificationCenter`
+  (`willPresent` → `[.banner, .list]`) оставлен на случай, если приложение всё же
+  окажется активным.
 
 ## 5. Структура проекта
 
@@ -135,7 +146,9 @@ macos/
 - Только USB-устройства класса `IOUSBHostDevice`; Thunderbolt-устройства без USB-функции и
   дисплеи не отслеживаются.
 - Питание — выделенное, а не реально потребляемое.
-- Хабы показываются в списке как обычные устройства, без дерева.
+- Хабы показываются в списке как обычные устройства, без дерева. Хаб USB 3.x — это два
+  `IOUSBHostDevice` (половины USB 2 и USB 3), поэтому один физический хаб даёт две строки
+  и «2 hubs» в шапке.
 - Свои звуковые файлы, история подключений, объём накопителей — не делаются.
 - Подпись ad-hoc: при первом запуске Gatekeeper может потребовать открыть через ПКМ → Open
   (для сборки на этой же машине не требует).

@@ -145,7 +145,10 @@ final class USBMonitor: ObservableObject {
 
         if !disconnected.isEmpty {
             notifier.post(.disconnected, devices: disconnected)
-            SoundPlayer.play(for: .disconnected)
+            // A mixed batch plays only the connect sound: two sounds at once are a mess.
+            if connected.isEmpty {
+                SoundPlayer.play(for: .disconnected)
+            }
         }
         if !connected.isEmpty {
             notifier.post(.connected, devices: connected)

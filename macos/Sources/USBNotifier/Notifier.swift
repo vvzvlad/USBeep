@@ -42,8 +42,9 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
         center.add(UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil))
     }
 
-    // A menu-bar app counts as frontmost while its window is open; without this
-    // the banner would be suppressed in that state.
+    // The menu window becomes key without activating the app (see SPEC §4), so
+    // banners are normally shown anyway; this keeps them visible if the app ever
+    // does become active, when they would otherwise be suppressed.
     func userNotificationCenter(_ center: UNUserNotificationCenter,
                                 willPresent notification: UNNotification,
                                 withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {

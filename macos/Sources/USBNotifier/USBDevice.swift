@@ -37,11 +37,14 @@ struct USBDevice: Identifiable, Equatable {
         vendorID = properties["idVendor"] as? Int ?? 0
         productID = properties["idProduct"] as? Int ?? 0
         speedText = Self.speedText(linkSpeed: properties["UsbLinkSpeed"] as? Int,
-                                   usbSpeed: properties["USBSpeed"] as? Int)
+                                   usbSpeed: properties["USBSpeed"] as? Int,
+                                   bcdUSB: properties["bcdUSB"] as? Int)
         let milliamps = properties["UsbPowerSinkAllocation"] as? Int ?? 0
         powerMilliamps = milliamps > 0 ? milliamps : nil
         powerText = Self.formatPower(milliamps: milliamps)
-        category = USBCategory.detect(deviceClass: properties["bDeviceClass"] as? Int, interfaces: interfaces)
+        let detected = USBCategory.detect(deviceClass: properties["bDeviceClass"] as? Int, interfaces: interfaces)
+        // iPhones and iPads expose a PTP (still image) interface first; "Camera" would mislead.
+        category = detected == .stillCamera && vendorID == USBCategory.appleVendorID ? .phone : detected
     }
 
     /// "05ac:12a8"
@@ -62,12 +65,28 @@ struct USBDevice: Identifiable, Equatable {
 
     /// Formats a link speed in bits/s with its USB generation:
     /// "USB 1.1 · 1.5 Mb/s", "USB 2.0 · 480 Mb/s", "USB 3.2 · 5 Gb/s". Nil for 0.
-    static func formatLinkSpeed(bitsPerSecond: Int) -> String? {
+    /// The generation comes from `bcdUSB` when known, otherwise from the speed.
+    static func formatLinkSpeed(bitsPerSecond: Int, bcdUSB: Int? = nil) -> String? {
         guard bitsPerSecond > 0 else { return nil }
         let rate = bitsPerSecond < 1_000_000_000
             ? "\(formatNumber(Double(bitsPerSecond) / 1_000_000)) Mb/s"
             : "\(formatNumber(Double(bitsPerSecond) / 1_000_000_000)) Gb/s"
-        return "\(usbGeneration(bitsPerSecond: bitsPerSecond)) · \(rate)"
+        let generation = bcdUSB.flatMap(usbVersion(bcd:)) ?? usbGeneration(bitsPerSecond: bitsPerSecond)
+        return "\(generation) · \(rate)"
+    }
+
+    /// USB version the device declares in `bcdUSB` (BCD): 0x0110 → "USB 1.1",
+    /// 0x0200/0x0210 → "USB 2.0", 0x0320 → "USB 3.2", 0x0400 → "USB4". Nil for 0.
+    /// A keyboard on a 12 Mb/s link usually declares 2.0, which PlugTalk shows too.
+    static func usbVersion(bcd: Int) -> String? {
+        let major = (bcd >> 8) & 0xFF
+        let minor = (bcd >> 4) & 0xF
+        switch major {
+        case 0: return nil
+        case 2: return "USB 2.0"   // 2.1 only marks LPM/BOS support, not a new version
+        case 4...: return "USB4"
+        default: return "USB \(major).\(minor)"
+        }
     }
 
     /// Generation label implied by the link speed.
@@ -82,7 +101,7 @@ struct USBDevice: Identifiable, Equatable {
 
     /// Formats a `USBSpeed` value (`tIOUSBHostConnectionSpeed`). Note the enum order:
     /// 1 is Full (12 Mb/s) and 2 is Low (1.5 Mb/s) — unlike the legacy "Device Speed" key.
-    static func formatUSBSpeed(_ speed: Int) -> String? {
+    static func formatUSBSpeed(_ speed: Int, bcdUSB: Int? = nil) -> String? {
         let bitsPerSecond: [Int: Int] = [
             1: 12_000_000,      // Full
             2: 1_500_000,       // Low
@@ -91,15 +110,15 @@ struct USBDevice: Identifiable, Equatable {
             5: 10_000_000_000,  // SuperPlus
             6: 20_000_000_000   // SuperPlusBy2
         ]
-        return bitsPerSecond[speed].flatMap { formatLinkSpeed(bitsPerSecond: $0) }
+        return bitsPerSecond[speed].flatMap { formatLinkSpeed(bitsPerSecond: $0, bcdUSB: bcdUSB) }
     }
 
     /// Prefers the actual link speed ("UsbLinkSpeed"), falls back to the "USBSpeed" enum.
-    static func speedText(linkSpeed: Int?, usbSpeed: Int?) -> String? {
-        if let linkSpeed, let text = formatLinkSpeed(bitsPerSecond: linkSpeed) {
+    static func speedText(linkSpeed: Int?, usbSpeed: Int?, bcdUSB: Int? = nil) -> String? {
+        if let linkSpeed, let text = formatLinkSpeed(bitsPerSecond: linkSpeed, bcdUSB: bcdUSB) {
             return text
         }
-        return usbSpeed.flatMap { formatUSBSpeed($0) }
+        return usbSpeed.flatMap { formatUSBSpeed($0, bcdUSB: bcdUSB) }
     }
 
     /// Converts current on the 5 V bus to watts: 500 mA → "2.5 W". Nil for 0.
@@ -150,6 +169,9 @@ struct USBCategory: Equatable {
     static let smartCard = USBCategory(name: "Smart card", symbol: "creditcard")
     static let displayAdapter = USBCategory(name: "Display adapter", symbol: "display")
     static let hub = USBCategory(name: "Hub", symbol: "point.3.connected.trianglepath.dotted")
+    static let phone = USBCategory(name: "Phone", symbol: "iphone")
+
+    static let appleVendorID = 0x05AC
 
     /// Symbol for devices without a known category.
     static let fallbackSymbol = "cable.connector"
