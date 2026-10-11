@@ -21,9 +21,16 @@ struct USBDevice: Identifiable, Equatable {
     /// "2.5 W"
     let powerText: String?
     let category: USBCategory?
+    /// Serial number string descriptor; nil when absent or blank.
+    let serialNumber: String?
+    /// Callout paths of the device's serial ports ("/dev/cu.usbmodem101"), sorted.
+    let serialPorts: [String]
 
-    /// - Parameter interfaces: properties of the device's IOUSBHostInterface children.
-    init(registryID: UInt64, properties: [String: Any], interfaces: [[String: Any]] = []) {
+    /// - Parameters:
+    ///   - interfaces: properties of the device's IOUSBHostInterface children.
+    ///   - serialPorts: callout paths of the serial ports found below the device.
+    init(registryID: UInt64, properties: [String: Any], interfaces: [[String: Any]] = [],
+         serialPorts: [String] = []) {
         let product = Self.string(properties, "kUSBProductString")
             ?? Self.string(properties, "USB Product Name")
             ?? "Unknown device"
@@ -34,6 +41,9 @@ struct USBDevice: Identifiable, Equatable {
         self.product = product
         self.vendor = vendor
         name = Self.displayName(vendor: vendor, product: product)
+        serialNumber = Self.string(properties, "kUSBSerialNumberString")
+            ?? Self.string(properties, "USB Serial Number")
+        self.serialPorts = serialPorts.sorted()
         vendorID = properties["idVendor"] as? Int ?? 0
         productID = properties["idProduct"] as? Int ?? 0
         speedText = Self.speedText(linkSpeed: properties["UsbLinkSpeed"] as? Int,

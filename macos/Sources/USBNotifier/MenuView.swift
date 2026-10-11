@@ -16,8 +16,8 @@ private extension Color {
     }
 }
 
-/// Content of the menu-bar window: header, device list, sound pickers and a
-/// footer with sound previews and the settings menu.
+/// Content of the menu-bar window: header with the settings menu behind the
+/// gear, and the device list.
 struct MenuView: View {
     @ObservedObject var monitor: USBMonitor
 
@@ -45,22 +45,6 @@ struct MenuView: View {
             deviceSection
                 .padding(.horizontal, 16)
                 .padding(.vertical, 14)
-
-            Divider()
-
-            VStack(spacing: 10) {
-                soundRow("Connect sound", selection: $connectSound)
-                soundRow("Disconnect sound", selection: $disconnectSound)
-            }
-            .disabled(!soundsEnabled)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-
-            Divider()
-
-            footer
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
         }
         .frame(width: 380)
         .background(Theme.background)
@@ -95,6 +79,7 @@ struct MenuView: View {
                 Badge(text: total, color: Theme.accent, fontSize: 13)
                     .help("Total current allocated on the 5 V bus: \(totalMilliamps) mA")
             }
+            settingsMenu
         }
     }
 
@@ -143,57 +128,34 @@ struct MenuView: View {
 
     // MARK: - Sounds
 
-    private func soundRow(_ title: String, selection: Binding<String>) -> some View {
-        HStack(spacing: 10) {
-            Image(systemName: "music.note")
-                .frame(width: 22)
-                .foregroundStyle(.secondary)
-            Text(title)
-                .foregroundStyle(.secondary)
-            Spacer(minLength: 8)
-            Picker(title, selection: Binding(
-                get: { selection.wrappedValue },
-                set: { newValue in
-                    selection.wrappedValue = newValue
-                    SoundPlayer.play(newValue)
-                }
-            )) {
-                ForEach(SoundPlayer.systemSounds, id: \.self) { name in
-                    Text(name).tag(name)
-                }
+    /// Submenu of system sounds; picking one plays it as a preview.
+    private func soundPicker(_ title: String, selection: Binding<String>) -> some View {
+        Picker(title, selection: Binding(
+            get: { selection.wrappedValue },
+            set: { newValue in
+                selection.wrappedValue = newValue
+                SoundPlayer.play(newValue)
             }
-            .pickerStyle(.menu)
-            .buttonStyle(.borderless)
-            .menuIndicator(.hidden)
-            .labelsHidden()
-            .fixedSize()
+        )) {
+            ForEach(SoundPlayer.systemSounds, id: \.self) { name in
+                Text(name).tag(name)
+            }
         }
-        .font(.system(size: 14))
+        .pickerStyle(.menu)
     }
 
-    // MARK: - Footer
+    // MARK: - Settings
 
-    private var footer: some View {
-        HStack(spacing: 18) {
-            Button {
-                SoundPlayer.play(connectSound)
-            } label: {
-                Label("Plug", systemImage: "play")
-            }
-            .buttonStyle(.plain)
-
-            Button {
-                SoundPlayer.play(disconnectSound)
-            } label: {
-                Label("Unplug", systemImage: "play.fill")
-            }
-            .buttonStyle(.plain)
-
-            Spacer()
-
-            Menu {
+    private var settingsMenu: some View {
+        Menu {
                 Toggle("Notifications", isOn: $notificationsEnabled)
                 Toggle("Sounds", isOn: $soundsEnabled)
+                Group {
+                    soundPicker("Connect sound", selection: $connectSound)
+                    soundPicker("Disconnect sound", selection: $disconnectSound)
+                }
+                .disabled(!soundsEnabled)
+                Divider()
                 Toggle("Replace previous notification", isOn: $replacePrevious)
                 Toggle("Launch at login", isOn: Binding(
                     get: { launchAtLogin },
@@ -215,9 +177,8 @@ struct MenuView: View {
             .buttonStyle(.borderless)
             .menuIndicator(.hidden)
             .fixedSize()
-        }
-        .font(.system(size: 14))
-        .foregroundStyle(.secondary)
+            .font(.system(size: 14))
+            .foregroundStyle(.secondary)
     }
 }
 
@@ -243,10 +204,20 @@ private struct DeviceRow: View {
                         Badge(text: power, color: Theme.power)
                     }
                 }
-                Text(detail)
-                    .font(.system(size: 12))
+                if let detail {
+                    Text(detail)
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                Text(identity)
+                    .font(.system(size: 11, design: .monospaced))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
+                    .truncationMode(.middle)
+                ForEach(device.serialPorts, id: \.self) { path in
+                    SerialPortButton(path: path)
+                }
             }
             Spacer(minLength: 0)
         }
@@ -254,15 +225,62 @@ private struct DeviceRow: View {
         .help(tooltip)
     }
 
-    /// "Vendor · Category" with only the parts that exist; VID:PID if neither does.
-    private var detail: String {
+    /// "Vendor · Category" with only the parts that exist; nil if neither does.
+    private var detail: String? {
         let parts = [device.vendor, device.category?.name].compactMap { $0 }
-        return parts.isEmpty ? device.vidPid : parts.joined(separator: " · ")
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
+    /// "303a:1001 · SN FC:01:2C:D1:E5:EC"; just the VID:PID without a serial number.
+    private var identity: String {
+        guard let serial = device.serialNumber else { return device.vidPid }
+        return "\(device.vidPid) · SN \(serial)"
     }
 
     private var tooltip: String {
         guard let milliamps = device.powerMilliamps else { return device.vidPid }
         return "\(device.vidPid) · \(milliamps) mA @ 5 V"
+    }
+}
+
+/// Callout path of a serial port; a click copies it to the clipboard and the
+/// icon briefly turns into a checkmark.
+private struct SerialPortButton: View {
+    let path: String
+
+    @State private var copied = false
+    @State private var resetTask: Task<Void, Never>?
+
+    var body: some View {
+        Button(action: copy) {
+            HStack(spacing: 4) {
+                Text(path)
+                    .font(.system(size: 11, design: .monospaced))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Image(systemName: copied ? "checkmark" : "doc.on.doc")
+                    .font(.system(size: 10))
+            }
+            .foregroundStyle(Theme.accent)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help("Copy path")
+    }
+
+    private func copy() {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(path, forType: .string)
+
+        copied = true
+        // A repeated click restarts the 1.5 s instead of being cut short by the earlier one.
+        resetTask?.cancel()
+        resetTask = Task {
+            try? await Task.sleep(for: .seconds(1.5))
+            guard !Task.isCancelled else { return }
+            copied = false
+        }
     }
 }
 

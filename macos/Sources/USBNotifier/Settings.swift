@@ -15,8 +15,8 @@ enum AppSettings {
     enum Default {
         static let notificationsEnabled = true
         static let soundsEnabled = true
-        static let connectSound = "Glass"
-        static let disconnectSound = "Basso"
+        static let connectSound = "Frog"
+        static let disconnectSound = "Frog"
         static let replacePrevious = false
     }
 

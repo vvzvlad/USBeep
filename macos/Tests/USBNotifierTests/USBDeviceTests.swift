@@ -31,6 +31,57 @@ final class USBDeviceTests: XCTestCase {
         XCTAssertEqual(device.powerText, "2.5 W")
     }
 
+    /// ESP32 USB JTAG/serial debug unit from `ioreg` on a Mac: composite (0xEF), Full Speed,
+    /// no UsbLinkSpeed or UsbPowerSinkAllocation, a CDC ACM serial port.
+    func testParsesESP32SerialDevice() {
+        let properties: [String: Any] = [
+            "idVendor": NSNumber(value: 12346),
+            "idProduct": NSNumber(value: 4097),
+            "bcdUSB": NSNumber(value: 512),
+            "USBSpeed": NSNumber(value: 1),
+            "bDeviceClass": NSNumber(value: 239),
+            "kUSBProductString": "USB JTAG/serial debug unit",
+            "kUSBVendorString": "Espressif",
+            "kUSBSerialNumberString": "FC:01:2C:D1:E5:EC",
+            "USB Serial Number": "FC:01:2C:D1:E5:EC"
+        ]
+        let interfaces = [
+            interface(number: 0, classCode: 0x02),
+            interface(number: 1, classCode: 0x0A),
+            interface(number: 2, classCode: 0xFF)
+        ]
+
+        let device = USBDevice(registryID: 1, properties: properties, interfaces: interfaces,
+                               serialPorts: ["/dev/cu.usbmodem101"])
+
+        XCTAssertEqual(device.vidPid, "303a:1001")
+        XCTAssertEqual(device.serialNumber, "FC:01:2C:D1:E5:EC")
+        XCTAssertEqual(device.category, .communication)
+        XCTAssertEqual(device.speedText, "USB 2.0 · 12 Mb/s")
+        XCTAssertNil(device.powerText)
+        XCTAssertEqual(device.serialPorts, ["/dev/cu.usbmodem101"])
+    }
+
+    func testModernSerialNumberKeyWinsOverLegacy() {
+        let device = USBDevice(registryID: 1, properties: [
+            "kUSBSerialNumberString": "A1B2C3",
+            "USB Serial Number": "LEGACY"
+        ])
+        XCTAssertEqual(device.serialNumber, "A1B2C3")
+    }
+
+    func testBlankSerialNumberIsNil() {
+        XCTAssertNil(USBDevice(registryID: 1, properties: ["kUSBSerialNumberString": ""]).serialNumber)
+        XCTAssertNil(USBDevice(registryID: 2, properties: ["USB Serial Number": "   "]).serialNumber)
+        XCTAssertNil(USBDevice(registryID: 3, properties: [:]).serialNumber)
+    }
+
+    func testSerialPortsAreSorted() {
+        let device = USBDevice(registryID: 1, properties: [:],
+                               serialPorts: ["/dev/cu.usbserial-B", "/dev/cu.usbserial-A"])
+        XCTAssertEqual(device.serialPorts, ["/dev/cu.usbserial-A", "/dev/cu.usbserial-B"])
+    }
+
     func testModernStringKeysWinOverLegacy() {
         let device = USBDevice(registryID: 1, properties: [
             "kUSBProductString": "Ultra Fit",

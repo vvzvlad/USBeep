@@ -1,5 +1,6 @@
 import Foundation
 import IOKit
+import IOKit.serial
 
 enum USBEvent {
     case connected
@@ -177,7 +178,8 @@ final class USBMonitor: ObservableObject {
     private static func readDevice(_ service: io_service_t) -> USBDevice {
         USBDevice(registryID: registryID(of: service),
                   properties: properties(of: service),
-                  interfaces: interfaceProperties(of: service))
+                  interfaces: interfaceProperties(of: service),
+                  serialPorts: serialPorts(of: service))
     }
 
     private static func properties(of entry: io_registry_entry_t) -> [String: Any] {
@@ -201,5 +203,49 @@ final class USBMonitor: ObservableObject {
             }
         }
         return interfaces
+    }
+
+    /// Callout paths ("/dev/cu.*") of the IOSerialBSDClient entries below the device.
+    /// The client is not a direct child: it hangs off a driver (AppleUSBACMData,
+    /// FTDI, CH34x) attached to one of the interfaces, hence the recursive walk.
+    private static func serialPorts(of service: io_service_t) -> [String] {
+        var iterator: io_iterator_t = IO_OBJECT_NULL
+        guard IORegistryEntryCreateIterator(service, kIOServicePlane,
+                                            IOOptionBits(kIORegistryIterateRecursively),
+                                            &iterator) == KERN_SUCCESS else {
+            return []
+        }
+        defer { IOObjectRelease(iterator) }
+
+        let deviceID = registryID(of: service)
+        var paths: [String] = []
+        forEachService(in: iterator) { entry in
+            guard IOObjectConformsTo(entry, kIOSerialBSDServiceValue) != 0,
+                  owningDeviceID(of: entry) == deviceID,
+                  let path = IORegistryEntryCreateCFProperty(entry, kIOCalloutDeviceKey as CFString,
+                                                             kCFAllocatorDefault, 0)?
+                      .takeRetainedValue() as? String else { return }
+            paths.append(path)
+        }
+        return paths
+    }
+
+    /// Registry ID of the nearest IOUSBHostDevice above `entry`. The recursive walk
+    /// from a hub also reaches the devices plugged into it; this keeps their ports
+    /// on their own rows.
+    private static func owningDeviceID(of entry: io_registry_entry_t) -> UInt64? {
+        var current = entry
+        IOObjectRetain(current)
+        while true {
+            var parent: io_registry_entry_t = IO_OBJECT_NULL
+            let result = IORegistryEntryGetParentEntry(current, kIOServicePlane, &parent)
+            IOObjectRelease(current)
+            guard result == KERN_SUCCESS else { return nil }
+            if IOObjectConformsTo(parent, className) != 0 {
+                defer { IOObjectRelease(parent) }
+                return registryID(of: parent)
+            }
+            current = parent
+        }
     }
 }
