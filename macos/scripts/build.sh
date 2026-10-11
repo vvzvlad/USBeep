@@ -58,6 +58,10 @@ cp "$BINARY" "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 
 APP_BUILD="$(git -C "$REPO_DIR" rev-list --count HEAD 2>/dev/null || echo 1)"
 "$PLIST_BUDDY" -c "Set :CFBundleVersion $APP_BUILD" "$APP_BUNDLE/Contents/Info.plist"
+# The release workflow passes the version from the git tag (v0.2.0 → 0.2.0).
+if [[ -n "${APP_VERSION:-}" ]]; then
+    "$PLIST_BUDDY" -c "Set :CFBundleShortVersionString $APP_VERSION" "$APP_BUNDLE/Contents/Info.plist"
+fi
 
 # Finder metadata makes codesign fail with "resource fork, Finder information,
 # or similar detritus not allowed".

@@ -1,0 +1,47 @@
+# Tests and builds the app on every push and pull request; a "v*" tag also
+# publishes a GitHub release with the zipped, ad-hoc signed bundle.
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: macos-15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # build.sh numbers the build by the commit count.
+          fetch-depth: 0
+
+      - name: Test
+        run: make test
+
+      - name: Build app
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            export APP_VERSION="${GITHUB_REF_NAME#v}"
+          fi
+          make app
+
+      - name: Zip
+        run: ditto -c -k --sequesterRsrc --keepParent macos/USBNotifier.app USBNotifier.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: USBNotifier
+          path: USBNotifier.zip
+
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" USBNotifier.zip \
+            --title "USB Notifier $GITHUB_REF_NAME" \
+            --notes "Apple Silicon, macOS 14+. Ad-hoc signed: on first launch open System Settings → Privacy & Security and click \"Open Anyway\"."

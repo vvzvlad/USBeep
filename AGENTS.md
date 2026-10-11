@@ -31,6 +31,17 @@ make clean
 Голый бинарник из `swift build` не запускать: `UNUserNotificationCenter` и `SMAppService`
 работают только из бандла с bundle id. Запуск — только через `make run` / `make install`.
 
+## Репозитории и релизы
+
+- `origin` — Gitea `projects/usb_notifier`, там ишью.
+- `github` — форк `vvzvlad/USBNotifier` от `ohaiibuzzle/USBNotifier`, ветка `main`.
+  История upstream влита слиянием `-s ours`, поэтому пуш в форк идёт без force.
+- `.github/workflows/build.yml`: на каждый пуш в `main` и PR — `make test` и `make app`,
+  zip бандла выкладывается артефактом.
+- Релиз: поставить тег `vX.Y.Z` и запушить его в `github`. Workflow соберёт приложение
+  с версией из тега (`APP_VERSION` в `build.sh`) и создаст GitHub Release с
+  `USBNotifier.zip`.
+
 ## Соглашения
 
 - Комментарии в коде — на английском. На английском же всё остальное, что остаётся в
