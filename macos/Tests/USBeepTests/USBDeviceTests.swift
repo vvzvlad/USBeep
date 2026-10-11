@@ -1,5 +1,5 @@
 import XCTest
-@testable import USBNotifier
+@testable import USBeep
 
 final class USBDeviceTests: XCTestCase {
     // MARK: - Parsing

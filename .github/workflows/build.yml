@@ -30,18 +30,18 @@ jobs:
           make app
 
       - name: Zip
-        run: ditto -c -k --sequesterRsrc --keepParent macos/USBNotifier.app USBNotifier.zip
+        run: ditto -c -k --sequesterRsrc --keepParent macos/USBeep.app USBeep.zip
 
       - uses: actions/upload-artifact@v4
         with:
-          name: USBNotifier
-          path: USBNotifier.zip
+          name: USBeep
+          path: USBeep.zip
 
       - name: Release
         if: startsWith(github.ref, 'refs/tags/v')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" USBNotifier.zip \
-            --title "USB Notifier $GITHUB_REF_NAME" \
+          gh release create "$GITHUB_REF_NAME" USBeep.zip \
+            --title "USBeep $GITHUB_REF_NAME" \
             --notes "Apple Silicon, macOS 14+. Ad-hoc signed: on first launch open System Settings → Privacy & Security and click \"Open Anyway\"."

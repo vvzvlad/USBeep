@@ -68,7 +68,7 @@ struct MenuView: View {
                         .foregroundStyle(Theme.accent)
                 }
             VStack(alignment: .leading, spacing: 2) {
-                Text("USB Notifier")
+                Text("USBeep")
                     .font(.system(size: 16, weight: .semibold))
                 Text(summary)
                     .font(.system(size: 12, design: .monospaced))

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds USBNotifier.app out of the SwiftPM release binary.
+# Builds USBeep.app out of the SwiftPM release binary.
 #
 #   macos/scripts/build.sh              build the binary and assemble the bundle
 #   macos/scripts/build.sh --skip-build reuse the binary already in .build
@@ -12,7 +12,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 MACOS_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 REPO_DIR="$(cd "$MACOS_DIR/.." && pwd)"
-APP_NAME="USBNotifier"
+APP_NAME="USBeep"
 BUILD_DIR="$MACOS_DIR/.build"
 APP_BUNDLE="$MACOS_DIR/$APP_NAME.app"
 PLIST_BUDDY="/usr/libexec/PlistBuddy"

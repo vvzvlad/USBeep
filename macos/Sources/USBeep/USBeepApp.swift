@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct USBNotifierApp: App {
+struct USBeepApp: App {
     @StateObject private var monitor: USBMonitor
 
     init() {
@@ -15,7 +15,7 @@ struct USBNotifierApp: App {
     }
 
     var body: some Scene {
-        MenuBarExtra("USB Notifier", systemImage: "cable.connector") {
+        MenuBarExtra("USBeep", systemImage: "cable.connector") {
             MenuView(monitor: monitor)
         }
         .menuBarExtraStyle(.window)

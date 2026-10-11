@@ -1,4 +1,4 @@
-# Agent Instructions — usb_notifier
+# Agent Instructions — usb_notifier (USBeep)
 
 Menu-bar приложение для macOS: уведомление и звук при подключении/отключении USB-устройства,
 живой список устройств со скоростью линка и выделенным питанием. Бесплатный аналог PlugTalk
@@ -10,18 +10,18 @@ Menu-bar приложение для macOS: уведомление и звук �
 
 ## Структура проекта
 
-- `macos/Package.swift` — SwiftPM: executable `USBNotifier` + тесты `USBNotifierTests`
-- `macos/Sources/USBNotifier/` — код приложения
-- `macos/Tests/USBNotifierTests/` — тесты чистой логики (разбор свойств, форматирование)
+- `macos/Package.swift` — SwiftPM: executable `USBeep` + тесты `USBeepTests`
+- `macos/Sources/USBeep/` — код приложения
+- `macos/Tests/USBeepTests/` — тесты чистой логики (разбор свойств, форматирование)
 - `macos/Resources/Info.plist` — Info.plist бандла (`LSUIElement`, bundle id)
-- `macos/scripts/build.sh` — собирает `macos/USBNotifier.app` и подписывает ad-hoc
+- `macos/scripts/build.sh` — собирает `macos/USBeep.app` и подписывает ad-hoc
 - `docs/SPEC.md` — требования и проверенные факты
 
 ## Команды
 
 ```bash
 make test       # swift test
-make app        # macos/USBNotifier.app
+make app        # macos/USBeep.app
 make run        # собрать бандл и запустить
 make install    # в /Applications и запустить
 make uninstall
@@ -34,13 +34,16 @@ make clean
 ## Репозитории и релизы
 
 - `origin` — Gitea `projects/usb_notifier`, там ишью.
-- `github` — форк `vvzvlad/USBNotifier` от `ohaiibuzzle/USBNotifier`, ветка `main`.
-  История upstream влита слиянием `-s ours`, поэтому пуш в форк идёт без force.
+- `github` — `vvzvlad/USBeep`, ветка `main`. Это бывший форк `ohaiibuzzle/USBNotifier`,
+  отвязанный от сети форков: форки не показываются в поиске GitHub. История upstream
+  влита слиянием `-s ours`, авторство его коммитов сохранено.
+- Имя приложения — USBeep, bundle id `xyz.vvzvlad.usbeep`. Каталог и репозиторий в Gitea
+  по-прежнему называются `usb_notifier`.
 - `.github/workflows/build.yml`: на каждый пуш в `main` и PR — `make test` и `make app`,
   zip бандла выкладывается артефактом.
 - Релиз: поставить тег `vX.Y.Z` и запушить его в `github`. Workflow соберёт приложение
   с версией из тега (`APP_VERSION` в `build.sh`) и создаст GitHub Release с
-  `USBNotifier.zip`.
+  `USBeep.zip`.
 
 ## Соглашения
 

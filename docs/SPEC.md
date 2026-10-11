@@ -1,4 +1,4 @@
-# usb_notifier — техническое задание
+# usb_notifier (USBeep) — техническое задание
 
 Menu-bar приложение для macOS 14+: при подключении/отключении USB-устройства показывает
 системное уведомление и играет звук, а по клику на иконку в строке меню — живой список
@@ -161,10 +161,10 @@ Frog, Funk, Glass, Hero, Morse, Ping, Pop, Purr, Sosumi, Submarine, Tink. Игр
 ```text
 macos/
   Package.swift
-  Resources/Info.plist        bundle id xyz.vvzvlad.usb-notifier, LSUIElement
-  scripts/build.sh            swift build → USBNotifier.app, ad-hoc codesign
-  Sources/USBNotifier/
-    USBNotifierApp.swift      @main, MenuBarExtra (.window)
+  Resources/Info.plist        bundle id xyz.vvzvlad.usbeep, LSUIElement
+  scripts/build.sh            swift build → USBeep.app, ad-hoc codesign
+  Sources/USBeep/
+    USBeepApp.swift           @main, MenuBarExtra (.window)
     USBDevice.swift           model, parsing of IOKit properties, speed/power formatting
     USBMonitor.swift          IOKit notifications, debounce, device list
     Notifier.swift            UNUserNotificationCenter
@@ -172,7 +172,7 @@ macos/
     Settings.swift            @AppStorage keys and defaults
     LaunchAtLogin.swift       SMAppService.mainApp
     MenuView.swift            device list and settings UI
-  Tests/USBNotifierTests/
+  Tests/USBeepTests/
     USBDeviceTests.swift      parsing and formatting tests
 ```
 
@@ -206,7 +206,7 @@ macos/
 
 Сверху вниз:
 
-- **Шапка:** иконка в розовом квадрате, «USB Notifier», «N devices · M hubs» моноширинным,
+- **Шапка:** иконка в розовом квадрате, «USBeep», «N devices · M hubs» моноширинным,
   справа капсула с суммарной мощностью.
 - Секция **«USB DEVICES»**, в каждой строке:
   - иконка категории;

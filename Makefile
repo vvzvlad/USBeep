@@ -1,6 +1,6 @@
 .PHONY: help build test app run install uninstall clean
 
-APP := USBNotifier
+APP := USBeep
 
 help:
 	@echo "make build      - swift build -c release"

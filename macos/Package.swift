@@ -3,19 +3,19 @@
 import PackageDescription
 
 let package = Package(
-    name: "USBNotifier",
+    name: "USBeep",
     platforms: [
         .macOS(.v14)
     ],
     targets: [
         .executableTarget(
-            name: "USBNotifier",
-            path: "Sources/USBNotifier"
+            name: "USBeep",
+            path: "Sources/USBeep"
         ),
         .testTarget(
-            name: "USBNotifierTests",
-            dependencies: ["USBNotifier"],
-            path: "Tests/USBNotifierTests"
+            name: "USBeepTests",
+            dependencies: ["USBeep"],
+            path: "Tests/USBeepTests"
         )
     ]
 )
