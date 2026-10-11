@@ -1,0 +1,136 @@
+# usb_notifier — техническое задание
+
+Menu-bar приложение для macOS 14+: при подключении/отключении USB-устройства показывает
+системное уведомление и играет звук, а по клику на иконку в строке меню — живой список
+подключённых устройств со скоростью линка и выделенным питанием. Бесплатный аналог PlugTalk,
+сознательно без правил на устройство и без мониторинга внешних дисплеев. Основа —
+[ohaiibuzzle/USBNotifier](https://github.com/ohaiibuzzle/USBNotifier) (GPL-3.0), из него
+взяты схема подписки на IOKit, дебаунс и группировка уведомлений.
+
+## 1. Пользовательский сценарий
+
+1. Пользователь запускает приложение (`make install`). Иконки в Dock нет, в строке меню
+   появляется `cable.connector`. При первом запуске macOS спрашивает разрешение на
+   уведомления. Отказ не закрывает приложение — звуки и список продолжают работать.
+2. Устройства, подключённые до запуска, попадают в список молча, без уведомлений.
+3. Пользователь втыкает устройство. Через ~1 с приходит уведомление «Connected» с именем
+   устройства и второй строкой «скорость · питание», играет звук подключения.
+   Если за секунду воткнули несколько устройств — одно уведомление «N devices connected»
+   со списком имён.
+4. Пользователь выдёргивает устройство — то же самое с «Disconnected» и звуком отключения.
+5. Клик по иконке открывает окно: список устройств (имя, VID:PID, скорость, питание) и
+   настройки — уведомления вкл/выкл, звуки вкл/выкл, выбор звука подключения и отключения
+   из системных, «заменять предыдущее уведомление», запуск при входе, Quit.
+
+## 2. Источники данных / внешние интерфейсы (проверено эмпирически)
+
+### IOKit: класс устройства
+
+- Класс — `IOUSBHostDevice`. Константа `kIOUSBHostDeviceClassName "IOUSBHostDevice"` —
+  проверено по заголовку `IOUSBHostFamilyDefinitions.h` из Xcode SDK. Upstream использует
+  `kIOUSBDeviceClassName`, в этих заголовках её нет.
+- Подписка: `IONotificationPortCreate` → `IOServiceAddMatchingNotification` с
+  `kIOMatchedNotification` и `kIOTerminatedNotification` на `IOServiceMatching("IOUSBHostDevice")`.
+  Оба итератора нужно сразу выбрать до конца — иначе нотификации не взводятся; upstream
+  делает это при старте и тем самым молча пропускает уже подключённые устройства.
+- Свойства — `IORegistryEntryCreateCFProperties`, идентификатор — `IORegistryEntryGetRegistryEntryID`.
+- Полный список — `IOServiceGetMatchingServices` с тем же matching-словарём.
+
+### Ключи свойств (по `IOUSBHostFamilyDefinitions.h` + реальный дамп)
+
+| Ключ | Смысл |
+| --- | --- |
+| `idVendor`, `idProduct` | VID / PID |
+| `kUSBProductString`, `kUSBVendorString`, `kUSBSerialNumberString` | строки дескриптора (современные ключи) |
+| `USB Product Name`, `USB Vendor Name`, `USB Serial Number` | те же строки, старые ключи |
+| `USBSpeed` (`kUSBHostMatchingPropertySpeed`) | enum `tIOUSBHostConnectionSpeed`, см. ниже |
+| `UsbLinkSpeed` (`kUSBHostPropertyForceLinkSpeed`) | скорость линка в бит/с |
+| `UsbPowerSinkAllocation` (`kUSBHostDevicePropertyPowerSinkAllocation`) | «OSNumber mA of current the device is expected to sink from Vbus (5V)» |
+| `UsbPowerSinkCapability` | максимум mA, который устройство может взять |
+
+Enum `tIOUSBHostConnectionSpeed` (значения `USBSpeed`):
+None=0, Full=1 (12 Mb/s), Low=2 (1.5 Mb/s), High=3 (480 Mb/s), Super=4 (5 Gb/s),
+SuperPlus=5 (10 Gb/s), SuperPlusBy2=6 (20 Gb/s).
+
+Реальный дамп `ioreg` устройства на Apple Silicon (форум Apple Developer):
+
+```text
+"USBSpeed" = 3
+"UsbLinkSpeed" = 480000000
+"UsbPowerSinkAllocation" = 500
+"USB Product Name" = "TETRA PEI interface"
+"kUSBCurrentConfiguration" = 1
+"bcdUSB" = 512
+"locationID" = 34734080
+```
+
+На этой машине проверить на живом устройстве не удалось: в момент разведки к ней ничего
+не было подключено, `ioreg` показал только контроллеры `AppleT8132USBXHCI`. Финальная
+проверка — руками с реальной флешкой/хабом.
+
+### Звуки
+
+Системные звуки лежат в `/System/Library/Sounds` (проверено `ls`): Basso, Blow, Bottle,
+Frog, Funk, Glass, Hero, Morse, Ping, Pop, Purr, Sosumi, Submarine, Tink. Играются через
+`NSSound(named:)` по имени без расширения.
+
+## 3. Решения и отвергнутые варианты
+
+| Решение | Почему так | Что отвергли и почему |
+| --- | --- | --- |
+| Идентификатор устройства — registry entry ID | уникален для каждого экземпляра | upstream `"VID-PID"`: два одинаковых устройства сливаются в одно |
+| Скорость: `UsbLinkSpeed` (бит/с) → «480 Mb/s», запасной вариант — enum `USBSpeed` | реальная скорость линка в готовых единицах | upstream-ключ `Device Speed` — другой enum (см. §4) |
+| Питание: `UsbPowerSinkAllocation` → «500 mA · 2.5 W» (mA × 5 В); нет ключа или 0 — не показываем | единственное, что отдаёт IOKit без привилегий | — |
+| Уведомление без собственного звука, звук отдельно через `NSSound` | раздельные звуки на подключение/отключение и отдельный выключатель | звук самого уведомления: один на всё и зависит от настроек Focus |
+| Дебаунс 1 с, пачка → одно уведомление «N devices connected» | хаб с пятью устройствами не должен сыпать пять баннеров | — |
+| При отказе в уведомлениях приложение работает дальше | звуки и список полезны и без уведомлений | upstream показывает диалог и завершается |
+| Список перечитывается после каждого события и при открытии окна | `UsbPowerSinkAllocation` может появиться позже момента подключения | постоянный поллинг — лишний |
+| UI на английском, строки прямо в коде | одна локаль | xcstrings-локализация upstream |
+| Нет правил на устройство, нет мониторинга дисплеев | так попросил пользователь | — |
+| Выкинуто из upstream: пауза мониторинга, «извлечь все диски» | не просили | — |
+
+## 4. Подводные камни
+
+- **`Device Speed` ≠ `USBSpeed`.** Upstream читает старый ключ `Device Speed` с отображением
+  0=Low, 1=Full, 2=High, 3=Super, 4=Super+. У `USBSpeed` другой порядок (1=Full, 2=Low).
+  Смешаешь — Full Speed станет Low и наоборот, а High Speed превратится в SuperSpeed.
+- **Питание — это выделение, а не измерение.** `UsbPowerSinkAllocation` — сколько mA
+  устройству разрешено/запрошено с VBUS 5 В, а не сколько оно реально потребляет. Ватты
+  = mA × 5 В / 1000. Самопитаемые устройства и часть хабов ключа не имеют.
+- **На отключении свойств уже может не быть.** Устройство для уведомления «Disconnected»
+  берётся из кэша по registry ID, а не читается с умирающего сервиса.
+- **Уведомления и автозапуск требуют бандла.** `UNUserNotificationCenter` и `SMAppService`
+  падают/молчат у голого бинарника из `swift build`. Только `make run`/`make install`.
+- **Menu-bar приложение «активно», пока открыто его окно**, и без делегата
+  `UNUserNotificationCenter` (`willPresent` → `[.banner, .list]`) баннер в этот момент
+  не показывается.
+
+## 5. Структура проекта
+
+```text
+macos/
+  Package.swift
+  Resources/Info.plist        bundle id xyz.vvzvlad.usb-notifier, LSUIElement
+  scripts/build.sh            swift build → USBNotifier.app, ad-hoc codesign
+  Sources/USBNotifier/
+    USBNotifierApp.swift      @main, MenuBarExtra (.window)
+    USBDevice.swift           model, parsing of IOKit properties, speed/power formatting
+    USBMonitor.swift          IOKit notifications, debounce, device list
+    Notifier.swift            UNUserNotificationCenter
+    SoundPlayer.swift         NSSound playback of system sounds
+    Settings.swift            @AppStorage keys and defaults
+    LaunchAtLogin.swift       SMAppService.mainApp
+    MenuView.swift            device list and settings UI
+  Tests/USBNotifierTests/
+    USBDeviceTests.swift      parsing and formatting tests
+```
+
+## 6. Ограничения
+
+- Только USB-устройства класса `IOUSBHostDevice`; Thunderbolt-устройства без USB-функции и
+  дисплеи не отслеживаются.
+- Питание — выделенное, а не реально потребляемое.
+- Хабы показываются в списке как обычные устройства, без дерева.
+- Свои звуковые файлы, история подключений, объём накопителей — не делаются.
+- Подпись ad-hoc: при первом запуске Gatekeeper может потребовать открыть через ПКМ → Open
+  (для сборки на этой же машине не требует).

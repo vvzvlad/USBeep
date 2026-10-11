@@ -1,0 +1,6 @@
+.DS_Store
+macos/.build/
+macos/*.app/
+macos/*.zip
+macos/*.dmg
+.swiftpm/
