@@ -56,9 +56,7 @@ mkdir -p "$APP_BUNDLE/Contents/Resources"
 cp "$MACOS_DIR/Resources/Info.plist" "$APP_BUNDLE/Contents/Info.plist"
 cp "$BINARY" "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 
-APP_VERSION="${APP_VERSION:-$("$PLIST_BUDDY" -c 'Print :CFBundleShortVersionString' "$APP_BUNDLE/Contents/Info.plist")}"
-APP_BUILD="${APP_BUILD:-$(git -C "$REPO_DIR" rev-list --count HEAD 2>/dev/null || echo 1)}"
-"$PLIST_BUDDY" -c "Set :CFBundleShortVersionString $APP_VERSION" "$APP_BUNDLE/Contents/Info.plist"
+APP_BUILD="$(git -C "$REPO_DIR" rev-list --count HEAD 2>/dev/null || echo 1)"
 "$PLIST_BUDDY" -c "Set :CFBundleVersion $APP_BUILD" "$APP_BUNDLE/Contents/Info.plist"
 
 # Finder metadata makes codesign fail with "resource fork, Finder information,

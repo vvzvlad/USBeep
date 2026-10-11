@@ -21,6 +21,8 @@ app:
 	bash macos/scripts/build.sh
 
 run: app
+	# A copy from /Applications would run alongside and double every notification.
+	pkill -x $(APP) || true
 	open macos/$(APP).app
 
 install: app
